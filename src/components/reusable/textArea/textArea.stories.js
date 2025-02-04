@@ -18,13 +18,14 @@ export default {
 
 export const TextArea = {
   args: {
-    unnamed: 'Label',
-    name: 'name',
+    label: 'Label',
+    name: 'text-area-1',
     value: '',
     placeholder: '',
     caption: '',
     required: false,
     disabled: false,
+    readonly: false,
     invalidText: '',
     minLength: undefined,
     maxLength: undefined,
@@ -43,6 +44,7 @@ export const TextArea = {
         caption=${args.caption}
         ?required=${args.required}
         ?disabled=${args.disabled}
+        ?readonly=${args.readonly}
         invalidText=${args.invalidText}
         .textStrings=${args.textStrings}
         minLength=${ifDefined(args.minLength)}
@@ -50,8 +52,8 @@ export const TextArea = {
         rows=${args.rows}
         @on-input=${(e) => action(e.type)(e)}
         @keydown=${(e) => e.stopPropagation()}
+        label=${args.label}
       >
-        ${args.unnamed}
       </kyn-text-area>
     `;
   },

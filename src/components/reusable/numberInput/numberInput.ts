@@ -1,29 +1,36 @@
+import { unsafeSVG } from 'lit-html/directives/unsafe-svg.js';
 import { LitElement, html } from 'lit';
 import { customElement, property, query, state } from 'lit/decorators.js';
 import { ifDefined } from 'lit/directives/if-defined.js';
 import { classMap } from 'lit/directives/class-map.js';
 import Styles from './numberInput.scss';
 import { FormMixin } from '../../../common/mixins/form-input';
-import '@kyndryl-design-system/shidoka-foundation/components/button';
-import '@kyndryl-design-system/shidoka-foundation/components/icon';
-import addIcon from '@carbon/icons/es/add/20';
-import subtractIcon from '@carbon/icons/es/subtract/20';
+import '../button';
 import { deepmerge } from 'deepmerge-ts';
+
+import chevronLeft from '@kyndryl-design-system/shidoka-icons/svg/monochrome/16/chevron-left.svg';
+import chevronRight from '@kyndryl-design-system/shidoka-icons/svg/monochrome/16/chevron-right.svg';
+import errorIcon from '@kyndryl-design-system/shidoka-icons/svg/monochrome/16/error-filled.svg';
 
 const _defaultTextStrings = {
   requiredText: 'Required',
   subtract: 'Subtract',
   add: 'Add',
+  error: 'Error',
 };
 
 /**
  * Number input.
  * @fires on-input - Captures the input event and emits the value and original event details.
- * @slot unnamed - Slot for label text.
+ * @slot tooltip - Slot for tooltip.
  */
 @customElement('kyn-number-input')
 export class NumberInput extends FormMixin(LitElement) {
   static override styles = Styles;
+
+  /** Label text. */
+  @property({ type: String })
+  label = '';
 
   /** Input size. "sm", "md", or "lg". */
   @property({ type: String })
@@ -44,6 +51,10 @@ export class NumberInput extends FormMixin(LitElement) {
   /** Input disabled state. */
   @property({ type: Boolean })
   disabled = false;
+
+  /** Input read only state. */
+  @property({ type: Boolean })
+  readonly = false;
 
   /** Optional text beneath the input. */
   @property({ type: String })
@@ -84,7 +95,11 @@ export class NumberInput extends FormMixin(LitElement) {
 
   override render() {
     return html`
-      <div class="number-input" ?disabled=${this.disabled}>
+      <div
+        class="number-input"
+        ?disabled=${this.disabled || this.readonly}
+        ?readonly=${this.readonly}
+      >
         <label
           class="label-text ${this.hideLabel ? 'sr-only' : ''}"
           for=${this.name}
@@ -93,11 +108,13 @@ export class NumberInput extends FormMixin(LitElement) {
             ? html`<abbr
                 class="required"
                 title=${this._textStrings.requiredText}
-                aria-label=${this._textStrings.requiredText}
+                role="img"
+                aria-label=${this._textStrings?.requiredText}
                 >*</abbr
               >`
             : null}
-          <slot></slot>
+          ${this.label}
+          <slot name="tooltip"></slot>
         </label>
 
         <div
@@ -105,15 +122,17 @@ export class NumberInput extends FormMixin(LitElement) {
             'input-wrapper': true,
           })}"
         >
-          <kd-button
-            kind="secondary"
+          <kyn-button
+            kind="primary-app"
             size=${this._sizeMap(this.size)}
             ?disabled=${this.disabled || this.value <= this.min}
+            ?readonly=${this.readonly}
+            outlineOnly
             description=${this._textStrings.subtract}
             @on-click=${this._handleSubtract}
           >
-            <kd-icon slot="icon" .icon=${subtractIcon}></kd-icon>
-          </kd-button>
+            <span slot="icon">${unsafeSVG(chevronLeft)}</span>
+          </kyn-button>
 
           <input
             class="${classMap({
@@ -126,7 +145,8 @@ export class NumberInput extends FormMixin(LitElement) {
             value=${this.value.toString()}
             placeholder=${this.placeholder}
             ?required=${this.required}
-            ?disabled=${this.disabled}
+            ?disabled=${this.disabled || this.readonly}
+            ?readonly=${this.readonly}
             ?invalid=${this._isInvalid}
             aria-invalid=${this._isInvalid}
             aria-describedby=${this._isInvalid ? 'error' : ''}
@@ -136,23 +156,39 @@ export class NumberInput extends FormMixin(LitElement) {
             @input=${(e: any) => this._handleInput(e)}
           />
 
-          <kd-button
-            kind="secondary"
+          <kyn-button
+            kind="primary-app"
             size=${this._sizeMap(this.size)}
             ?disabled=${this.disabled || this.value >= this.max}
+            ?readonly=${this.readonly}
+            outlineOnly
             description=${this._textStrings.add}
             @on-click=${this._handleAdd}
           >
-            <kd-icon slot="icon" .icon=${addIcon}></kd-icon>
-          </kd-button>
+            <span slot="icon">${unsafeSVG(chevronRight)}</span>
+          </kyn-button>
         </div>
 
         ${this.caption !== ''
-          ? html` <div class="caption">${this.caption}</div> `
+          ? html`
+              <div
+                class="caption"
+                aria-disabled=${this.disabled}
+                ?readonly=${this.readonly}
+              >
+                ${this.caption}
+              </div>
+            `
           : null}
         ${this._isInvalid
           ? html`
               <div id="error" class="error">
+                <span
+                  role="img"
+                  class="error-icon"
+                  aria-label=${this._textStrings.error}
+                  >${unsafeSVG(errorIcon)}</span
+                >
                 ${this.invalidText || this._internalValidationMsg}
               </div>
             `
@@ -161,8 +197,8 @@ export class NumberInput extends FormMixin(LitElement) {
     `;
   }
 
-  private _sizeMap(size: string) {
-    let btnSize = 'medium';
+  private _sizeMap(size: string): 'small' | 'medium' | 'large' {
+    let btnSize: 'small' | 'medium' | 'large' = 'medium';
 
     switch (size) {
       case 'lg':
